@@ -18,5 +18,8 @@ d.onkeydown = (e) => {
                 d.body.removeChild(i);
             }
         }
+        i.onmousemove = (ev) => {
+            i.play();
+        }
     }
 }
