@@ -19,6 +19,7 @@ d.onkeydown = (e) => {
             }
         }
         i.onmousemove = (ev) => {
+            console.log('move')
             i.play();
         }
     }
