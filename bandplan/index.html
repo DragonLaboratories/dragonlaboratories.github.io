@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    </head>
+    <body class="bg-dark">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-secondary">
+            <a class="navbar-brand" href="/">
+                Ryzerth
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+          
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item active ml-sm-5 mr-sm-5">
+                        <a class="nav-link" href="/">Home <span class="sr-only">(current)</span></a>
+                    </li>
+                    <li class="nav-item active mr-sm-5">
+                        <a class="nav-link" href="/gallery">Gallery <span class="sr-only">(current)</span></a>
+                    </li>
+                    <li class="nav-item active mr-sm-5">
+                        <a class="nav-link" href="/about">About <span class="sr-only">(current)</span></a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="container mt-sm-5 text-light">
+            <h1>Band plan editor</h1>
+            <hr/>
+
+            <script>
+                let plan = [];
+                function add() {
+                    let name = document.getElementById('band-name').value;
+                    let type = document.getElementById('band-type').value;
+                    let start = document.getElementById('band-start').value;
+                    let end = document.getElementById('band-end').value;
+
+                    plan.push({
+                        name: name,
+                        type: type,
+                        start: start,
+                        end: end
+                    })
+
+                    fillTable();
+                }
+
+                function deleteItm(index) {
+                    plan.splice(index, 1);
+                    fillTable();
+                }
+
+                function fillTable() {
+                    plan.sort(function(a, b){return a.start - b.start})
+
+                    let table = document.getElementById('band-table');
+                    let html = '';
+                    html += '<tr>';
+                    html += `<td>Name</td>`;
+                    html += `<td>Type</td>`;
+                    html += `<td>Start</td>`;
+                    html += `<td>End</td>`;
+                    html += `<td>Delete</td>`;
+                    html += '</tr>\n';
+                        
+                    for (let i = 0; i < plan.length; i++) {
+                        let band = plan[i];
+                        html += '<tr>';
+                        html += `<td>${band.name}</td>`;
+                        html += `<td>${band.type}</td>`;
+                        html += `<td>${band.start}</td>`;
+                        html += `<td>${band.end}</td>`;
+                        html += `<td><input type="button" value="-" onclick="deleteItm(${i})"/></td>`;
+                        html += '</tr>\n';
+                    }
+                    table.innerHTML = html;
+                    document.getElementById('output').innerText = JSON.stringify(plan, undefined, 4); 
+                }           
+            </script>
+
+            <input id="band-name" type="text" style="width: 250px;" placeholder="Band name"/>
+            <select id="band-type">
+                <option value="amateur">Amateur</option>
+                <option value="military">Military</option>
+                <option value="broadcast">Broadcast</option>
+                <option value="other">Other</option>
+            </select>
+            <input id="band-start" type="number" style="width: 150px;" placeholder="Start (Hz)"/>
+            <input id="band-end" type="number" style="width: 150px;" placeholder="End (Hz)"/>            
+            <input type="button" value="+" onclick="add()"/>
+            
+            <br>
+
+            <table id="band-table" style="width:100%" class="mt-5">
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Delete</th>
+                </tr>
+            </table>
+
+            <code class="mt-5" id="output">
+            </code>
+
+            <script>fillTable();</script>
+
+        </div>
+
+        <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+        <script src="scripts/konami.js"></script>
+    </body>
+</html>
