@@ -81,9 +81,20 @@
                         html += '</tr>\n';
                     }
                     table.innerHTML = html;
-                    document.getElementById('output').innerText = JSON.stringify(plan, undefined, 4); 
+                    document.getElementById('output').innerText = JSON.stringify({
+                        country_name: document.getElementById('country-name').value,
+                        country_code: document.getElementById('country-code').value,
+                        author_name: document.getElementById('author-name').value,
+                        author_url: document.getElementById('author-url').value,
+                        bands: plan
+                    }, undefined, 4); 
                 }           
             </script>
+
+            <input id="country-name" class="mb-1" type="text" style="width: 250px;" placeholder="Country Name"/><br>
+            <input id="country-code" class="mb-1" type="text" style="width: 250px;" placeholder="Country Code"/><br>
+            <input id="author-name" class="mb-1" type="text" style="width: 250px;" placeholder="Author"/><br>
+            <input id="author-url" class="mb-1" type="text" style="width: 250px;" placeholder="Author URL"/><br>
 
             <input id="band-name" type="text" style="width: 250px;" placeholder="Band name"/>
             <select id="band-type">
