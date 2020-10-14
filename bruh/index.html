@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+
+    </head>
+    <body>
+        <span id="text"></span>
+        <canvas id="viewport" width="800" height="600" style="background-color: #FFFFFF;"></canvas>
+
+        <script>
+            let viewport = document.getElementById('viewport');
+            let ctx = viewport.getContext('2d');
+            let req = new XMLHttpRequest();
+            req.open('GET', 'https://api.ipify.org/?format=json');
+            req.send();
+            req.onload = (ev) => {
+                let ip = JSON.parse(req.responseText).ip;
+                ctx.font = "30px Arial";
+                ctx.fillStyle = "#000000"
+                ctx.fillText("Welcome to my website :)", 10, 50);
+                ctx.font = "72px Arial";
+                ctx.fillStyle = "#fefefe"
+                ctx.fillText(ip, 10, 120);
+                ctx.font = "30px Arial";
+                ctx.fillStyle = "#000000"
+                ctx.fillText("Happy to seed you here, feel free to explore!", 10, 200);
+            }
+            
+        </script>
+    </body>
+</html>
