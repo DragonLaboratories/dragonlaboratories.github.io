@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+        <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/default.min.css">
+        <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/highlight.min.js"></script>
+
+        <script>hljs.highlightAll();</script>
+    </head>
+    <body class="bg-dark">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-secondary">
+            <a class="navbar-brand" href="/">
+                Ryzerth's Writeups
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+          
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item active ml-sm-5 mr-sm-5">
+                        <a class="nav-link" href="/">Home <span class="sr-only">(current)</span></a>
+                    </li>
+                    <li class="nav-item active mr-sm-5">
+                        <a class="nav-link" href="/gallery">Gallery <span class="sr-only">(current)</span></a>
+                    </li>
+                    <li class="nav-item active mr-sm-5">
+                        <a class="nav-link" href="/about">About <span class="sr-only">(current)</span></a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="container mt-sm-5 text-light">
+            <h1>Falcon 9 Telemetry - From PHY to video</h1>
+            <hr/>
+
+            <p>
+                A few days ago, I decided to write a decoder for the Falcon 9's telemetry signal. It took me quite some time because of typos made at 4am (a classic of any night time coder) and the rather low amount of documentation.
+                I've therefor decided to do a writeup about it so that other people can try writing their own decoders. Most of the information covered here was obtained through the hard work of <a href="https://twitter.com/r2x0t">@r2x0t</a>.
+                I'd also like to thank <a href="https://twitter.com/aang254">@aang254</a> for his help debugging my trashy code. 
+            </p>
+
+            <h2>The PHY</h2><hr/>
+
+            <p>
+                For the physical layer, the SpaceX engineers went with simple GMSK modulation. This is a type of Frequency Shift Keying (FSK). In traditional FSK, each bit is encoded by moving the carrier up or down in frequency. The difference between
+                FSK and GMSK is the way the transitions between 1s and 0s are handled. With tradition FSK, the switch is abrupt and causes the bandwidth required by the signal to be significantly increased. GMSK fixes this issue by filtering the modulated
+                symbols before being modulated onto the carrier.
+            </p>
+
+            <p>
+                Decoding this signal is rather simple. All you need is to filter the signal down to its bandwidth (in this case 4MHz) and then demodulate in FM like you would with broadcast FM (except of cours without the audio filtering and a much higher bandwidth).
+                In DSP, you just need to calculate the phase difference between two complex samples:
+            </p>
+
+            <pre><code class="language-cpp">
+for (int i = 0; i < count; i++) {
+    // Get the phase of the current sample
+    currentPhase = arctan2(in[i].i, in[i].q);
+    
+    // Calculate the difference between the two phases
+    diff = currentPhase - phase;
+    if (diff > M_PI)        { diff -= 2 * M_PI; }
+    else if (diff <= -M_PI) { diff += 2 * M_PI; }
+    
+    // Write to output and save value for the next sample
+    out[i].l = diff / phasorSpeed;
+    out[i].r = diff / phasorSpeed;
+    phase = currentPhase;
+}
+            </code></pre>
+            
+            <p>
+                This demodulated signal then has to be fed though a clock recovery algorithm such as M&M. This algorithm is quite complicated so I won't explain it in detail. Instead, you can read this
+                <a href="https://edfuentetaja.github.io/sdr/m_m_analysis/">very nice post by Ed Fuentetaja</a>. In very simple terms, this algorithm takes a sample in the data where it thinks the symbol should be,
+                calculates the error between where it's been sampled and where it should have actually been (through some very cursed math) and then adjusts its parameters through a proportional-integral loop
+                to do better for the next samples. Please note that the code below has been simplified for better understanding, checkout my github for the full working code.
+            </p>
+            <pre><code class="language-cpp">
+for (int i = 0; i < count;) {
+    // Calculate output value
+    outVal = interpolate(&in[i], INTERP_TAPS[(int)roundf(expectedPhase * 128.0f)], 8);
+    out.writeBuf[outCount] = outVal;
+
+    // Cursed phase detect approximation
+    phaseError = (DSP_STEP(lastOutput)*outVal) - (lastOutput*DSP_STEP(outVal));
+    lastOutput = outVal;
+    outCount++;
+
+    // Clamp phase error
+    if (phaseError > 1.0f) { phaseError = 1.0f; }
+    if (phaseError < -1.0f) { phaseError = -1.0f; }
+
+    // Adjust the symbol rate using the phase error approximation and clamp
+    expectedSymbolRate = expectedSymbolRate + (_gainOmega * phaseError);
+    if (expectedSymbolRate > maxSymbolRate) { expectedSymbolRate = maxSymbolRate; }
+    else if (expectedSymbolRate < minSymbolRate) { expectedSymbolRate = minSymbolRate; }
+
+    // Adjust the symbol phase according to the phase error approximation
+    // It will now contain the phase difference needed to jump to the next symbol
+    // Rounded step will contain the rounded number of symbols
+    expectedPhase = expectedPhase + expectedSymbolRate + (expectedPhaseGain * phaseError);
+    roundedStep = floor(expectedPhase);
+
+    // Step to where the next symbol should be
+    i += (int)roundedStep;
+
+    // Now that we've stepped to the next symbol, keep only the offset inside the symbol
+    expectedPhase -= roundedStep;
+}
+            </code></pre>
+
+            <p>
+                Cool, now we have bits! After this step, we are already closer to what most people reading this article will be familiar with. But one problem of radio transmission is still left: Where is the beginning of data? As of now, we're just reading
+                random bits, we don't know where they go or what they mean. This is where framing comes into play. All the data sent from the rocket is neatly packaged into frames all exactly the same length (10232 bits) and prefixed with a "Sync word". 
+                This is a unique string of bits that can easily be located using a sliding window. This step is easier to be done with raw symbols (a single byte being 1 or 0) instead of packed bits. In my case, I actually decided to use this step to pack the
+                frames into bytes for the next steps in the decoding.
+            </p>
+
+        </div>
+
+        <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+        <script src="scripts/konami.js"></script>
+    </body>
+</html>
